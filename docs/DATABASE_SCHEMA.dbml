@@ -1,0 +1,295 @@
+// Solar PV QA LIMS - Complete Database Schema
+// Compatible with dbdiagram.io
+// Use this URL to visualize: https://dbdiagram.io/d
+
+Project SolarPVQALIMS {
+  database_type: 'Dataverse'
+  Note: 'Laboratory Information Management System for Solar PV Module Testing & Certification'
+}
+
+// Core Tables
+
+Table ServiceRequests {
+  ServiceRequestID varchar(36) [pk, note: 'Primary Key (GUID)']
+  RequestNumber varchar(20) [unique, not null, note: 'Auto: SR-0001']
+  CustomerID varchar(36) [ref: > Accounts.AccountID]
+  RequestDate date [not null, default: `GETDATE()`]
+  TestType varchar(50) [not null, note: 'Choice: Type Testing, Reliability, Design Qualification, Safety']
+  LabType varchar(30) [not null, note: 'Choice: Internal, External, Third-Party']
+  ExternalLabID varchar(36) [ref: > ExternalLabs.ExternalLabID]
+  Status varchar(20) [not null, default: 'Draft', note: 'Choice: Draft, Quoted, Active, Testing, Completed, Cancelled']
+  QuotedAmount decimal(10,2)
+  EstimatedDays int
+  StartDate date
+  TargetCompletionDate date
+  ActualCompletionDate date
+  AssignedToID varchar(36) [ref: > Users.UserID]
+  Notes text
+  CreatedOn datetime [not null, default: `GETDATE()`]
+  CreatedByID varchar(36) [ref: > Users.UserID]
+  ModifiedOn datetime
+  ModifiedByID varchar(36) [ref: > Users.UserID]
+}
+
+Table Samples {
+  SampleID varchar(36) [pk]
+  SampleNumber varchar(20) [unique, not null, note: 'Auto: SMPL-0001']
+  ServiceRequestID varchar(36) [not null, ref: > ServiceRequests.ServiceRequestID]
+  ReceivedDate date [not null]
+  ModuleType varchar(100)
+  Manufacturer varchar(100)
+  ModelNumber varchar(100)
+  SerialNumber varchar(100)
+  RatedPowerW decimal(8,2)
+  VocVolts decimal(6,2) [note: 'Open Circuit Voltage']
+  IscAmps decimal(6,2) [note: 'Short Circuit Current']
+  VmpVolts decimal(6,2) [note: 'Voltage at Max Power']
+  ImpAmps decimal(6,2) [note: 'Current at Max Power']
+  CellType varchar(30) [note: 'Choice: Mono-PERC, Poly, TOPCon, HJT, IBC']
+  FrameMaterial varchar(50)
+  GlassType varchar(50)
+  Encapsulant varchar(50)
+  Backsheet varchar(50)
+  JunctionBox varchar(50)
+  StorageLocation varchar(50)
+  SampleCondition varchar(20) [note: 'Choice: Good, Damaged, Defective']
+  Status varchar(20) [default: 'Received', note: 'Choice: Received, Pre-test, Testing, Post-test, Disposed']
+  PhotoURL varchar(500)
+  CreatedOn datetime [not null, default: `GETDATE()`]
+  CreatedByID varchar(36) [ref: > Users.UserID]
+}
+
+Table BillOfMaterials {
+  BOMID varchar(36) [pk]
+  SampleID varchar(36) [not null, ref: > Samples.SampleID]
+  ComponentType varchar(50) [not null, note: 'Choice: Cell, Glass, Frame, Encapsulant, Backsheet, Junction Box, Cables, Connectors']
+  ComponentName varchar(200)
+  Manufacturer varchar(100)
+  PartNumber varchar(100)
+  Quantity int
+  Specifications text
+  CreatedOn datetime [not null]
+}
+
+Table TestPlans {
+  TestPlanID varchar(36) [pk]
+  ServiceRequestID varchar(36) [not null, ref: > ServiceRequests.ServiceRequestID]
+  TestSequence varchar(50) [note: 'Choice: IEC 61215 Seq A, Seq B, Seq C, Seq D, Seq E']
+  PlannedStartDate date
+  PlannedEndDate date
+  ActualStartDate date
+  ActualEndDate date
+  Status varchar(20) [default: 'Planned', note: 'Choice: Planned, In Progress, Completed, On Hold']
+  AssignedTechnicianID varchar(36) [ref: > Users.UserID]
+  ApprovedByID varchar(36) [ref: > Users.UserID]
+  ApprovalDate date
+  CreatedOn datetime [not null]
+}
+
+Table TestMilestones {
+  MilestoneID varchar(36) [pk]
+  TestPlanID varchar(36) [not null, ref: > TestPlans.TestPlanID]
+  MilestoneName varchar(200) [not null]
+  Description text
+  PlannedDate date
+  ActualDate date
+  Status varchar(20) [default: 'Pending', note: 'Choice: Pending, In Progress, Completed, Delayed']
+  DependsOnMilestoneID varchar(36) [ref: > TestMilestones.MilestoneID]
+  SequenceOrder int
+  CreatedOn datetime [not null]
+}
+
+Table Tests {
+  TestID varchar(36) [pk]
+  TestNumber varchar(20) [unique, not null, note: 'Auto: TST-0001']
+  TestPlanID varchar(36) [ref: > TestPlans.TestPlanID]
+  SampleID varchar(36) [not null, ref: > Samples.SampleID]
+  TestType varchar(100) [not null, note: 'Choice: Thermal Cycling, Damp Heat, UV Exposure, Hail Impact, Static Load, Dynamic Load, Hot-Spot, PID, Wet Leakage, Dielectric, Mechanical Load']
+  TestStandard varchar(50) [note: 'Choice: IEC 61215, IEC 61730, IEC 61853, IEC 61427']
+  PlannedStartDateTime datetime
+  PlannedEndDateTime datetime
+  ActualStartDateTime datetime
+  ActualEndDateTime datetime
+  Status varchar(20) [default: 'Scheduled', note: 'Choice: Scheduled, Running, Paused, Completed, Failed, Cancelled']
+  ProgressPercent int [note: '0-100']
+  CurrentCycle int
+  TotalCycles int
+  CurrentHours decimal(10,2)
+  TotalHours decimal(10,2)
+  EquipmentID varchar(36) [ref: > Equipment.EquipmentID]
+  TechnicianID varchar(36) [ref: > Users.UserID]
+  Result varchar(20) [note: 'Choice: Pass, Fail, Conditional']
+  Notes text
+  CreatedOn datetime [not null]
+}
+
+Table TestResults {
+  TestResultID varchar(36) [pk]
+  TestID varchar(36) [not null, ref: > Tests.TestID]
+  MeasurementDateTime datetime [not null]
+  Parameter varchar(100) [not null, note: 'e.g., Pmax, Voc, Isc, FF, Efficiency']
+  Value decimal(12,4)
+  Unit varchar(20)
+  PassFail varchar(10) [note: 'Choice: Pass, Fail, NA']
+  AcceptanceCriteria varchar(200)
+  MeasuredByID varchar(36) [ref: > Users.UserID]
+  Notes text
+  CreatedOn datetime [not null]
+}
+
+Table Documents {
+  DocumentID varchar(36) [pk]
+  DocumentNumber varchar(20) [unique, note: 'Auto: DOC-0001']
+  ServiceRequestID varchar(36) [ref: > ServiceRequests.ServiceRequestID]
+  SampleID varchar(36) [ref: > Samples.SampleID]
+  TestID varchar(36) [ref: > Tests.TestID]
+  DocumentType varchar(50) [not null, note: 'Choice: Quotation, Test Report, Certificate, Datasheet, I-V Curve, EL Image, Thermal Image, BoM, Excel Data, Inspection Photo']
+  DocumentName varchar(500) [not null]
+  Version varchar(20)
+  UploadDate datetime [not null]
+  UploadedByID varchar(36) [ref: > Users.UserID]
+  SharePointURL varchar(1000)
+  FileSize int [note: 'in KB']
+  Status varchar(20) [default: 'Draft', note: 'Choice: Draft, In Review, Approved, Obsolete']
+  ApprovedByID varchar(36) [ref: > Users.UserID]
+  ApprovalDate datetime
+  CreatedOn datetime [not null]
+}
+
+Table Reports {
+  ReportID varchar(36) [pk]
+  ReportNumber varchar(20) [unique, not null, note: 'Auto: RPT-0001']
+  ServiceRequestID varchar(36) [not null, ref: > ServiceRequests.ServiceRequestID]
+  ReportType varchar(50) [note: 'Choice: Type Test Report, Reliability Report, Interim Report, Final Report']
+  GeneratedDate datetime
+  ReportStatus varchar(20) [default: 'Draft', note: 'Choice: Draft, Under Review, Approved, Issued']
+  GeneratedByID varchar(36) [ref: > Users.UserID]
+  ReviewedByID varchar(36) [ref: > Users.UserID]
+  ApprovedByID varchar(36) [ref: > Users.UserID]
+  IssuedDate datetime
+  DocumentID varchar(36) [ref: > Documents.DocumentID]
+  CreatedOn datetime [not null]
+}
+
+Table Certificates {
+  CertificateID varchar(36) [pk]
+  CertificateNumber varchar(20) [unique, not null, note: 'Auto: CERT-0001']
+  ServiceRequestID varchar(36) [not null, ref: > ServiceRequests.ServiceRequestID]
+  ReportID varchar(36) [ref: > Reports.ReportID]
+  CertificateType varchar(50) [note: 'Choice: IEC 61215, IEC 61730, IEC 61853, Custom']
+  IssuedDate datetime
+  ExpiryDate datetime
+  Status varchar(20) [default: 'Valid', note: 'Choice: Valid, Expired, Revoked']
+  IssuedByID varchar(36) [ref: > Users.UserID]
+  QRCodeURL varchar(500) [note: 'URL for certificate verification']
+  DocumentID varchar(36) [ref: > Documents.DocumentID]
+  CreatedOn datetime [not null]
+}
+
+// Supporting Tables
+
+Table ExternalLabs {
+  ExternalLabID varchar(36) [pk]
+  LabName varchar(200) [not null]
+  AccreditationBody varchar(50) [note: 'Choice: TÜV, UL, BIS, NABL, A2LA']
+  AccreditationNumber varchar(100)
+  ContactName varchar(100)
+  Email varchar(200)
+  Phone varchar(50)
+  Address text
+  Website varchar(500)
+  Status varchar(20) [default: 'Active', note: 'Choice: Active, Inactive']
+  CreatedOn datetime [not null]
+}
+
+Table TestServices {
+  TestServiceID varchar(36) [pk]
+  ServiceName varchar(200) [not null]
+  ServiceCategory varchar(100) [note: 'Environmental, Mechanical, Electrical, Safety']
+  TestStandard varchar(50)
+  EstimatedDurationDays int
+  BasePrice decimal(10,2)
+  Description text
+  IsActive bit [default: 1]
+  CreatedOn datetime [not null]
+}
+
+Table Equipment {
+  EquipmentID varchar(36) [pk]
+  EquipmentName varchar(200) [not null]
+  EquipmentType varchar(100) [note: 'Thermal Chamber, Solar Simulator, IV Tester, etc.']
+  Manufacturer varchar(100)
+  ModelNumber varchar(100)
+  SerialNumber varchar(100)
+  CalibrationDate date
+  NextCalibrationDate date
+  Status varchar(20) [default: 'Available', note: 'Choice: Available, In Use, Maintenance, Calibration']
+  LocationCode varchar(50)
+  CreatedOn datetime [not null]
+}
+
+Table Standards {
+  StandardID varchar(36) [pk]
+  StandardCode varchar(50) [unique, not null, note: 'e.g., IEC 61215, IEC 61730']
+  StandardName varchar(500) [not null]
+  Version varchar(20)
+  PublishedDate date
+  OrganizationBody varchar(100) [note: 'IEC, UL, BIS, etc.']
+  Category varchar(100) [note: 'Design Qualification, Safety, Performance']
+  DocumentURL varchar(1000)
+  IsActive bit [default: 1]
+  CreatedOn datetime [not null]
+}
+
+// System Tables
+
+Table Users {
+  UserID varchar(36) [pk]
+  Email varchar(200) [unique, not null]
+  FirstName varchar(100)
+  LastName varchar(100)
+  Role varchar(50) [note: 'Choice: Lab Manager, QA Engineer, Technician, Admin']
+  Department varchar(100)
+  Phone varchar(50)
+  IsActive bit [default: 1]
+  CreatedOn datetime [not null]
+}
+
+Table Accounts {
+  AccountID varchar(36) [pk]
+  AccountName varchar(500) [not null]
+  AccountNumber varchar(50) [unique]
+  AccountType varchar(50) [note: 'Choice: Customer, Supplier, Partner']
+  Industry varchar(100)
+  Website varchar(500)
+  Email varchar(200)
+  Phone varchar(50)
+  BillingAddress text
+  ShippingAddress text
+  PrimaryContactID varchar(36) [ref: > Users.UserID]
+  IsActive bit [default: 1]
+  CreatedOn datetime [not null]
+}
+
+// Indexes for Performance
+TableGroup CoreTables {
+  ServiceRequests
+  Samples
+  Tests
+  TestResults
+}
+
+TableGroup DocumentTables {
+  Documents
+  Reports
+  Certificates
+}
+
+TableGroup ReferenceData {
+  ExternalLabs
+  TestServices
+  Equipment
+  Standards
+  Users
+  Accounts
+}
