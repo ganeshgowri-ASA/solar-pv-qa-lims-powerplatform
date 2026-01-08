@@ -21,6 +21,9 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - critical for Railway deployment (proper IP detection behind reverse proxy)
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 

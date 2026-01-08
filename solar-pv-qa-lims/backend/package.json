@@ -8,6 +8,8 @@
     "dev": "nodemon server.js",
     "db:init": "node database/init.js",
     "db:seed": "node database/seed.js",
+    "db:migrate": "node migrations/run.js",
+    "db:migrate:reset": "node migrations/run.js --reset",
     "test": "jest",
     "lint": "eslint ."
   },
