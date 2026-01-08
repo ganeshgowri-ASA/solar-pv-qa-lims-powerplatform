@@ -4,6 +4,33 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const { execSync } = require('child_process');
+const path = require('path');
+
+// Run database migrations on startup
+function runMigrations() {
+  console.log('🔄 Running database migrations...');
+  try {
+    const migrationScript = path.join(__dirname, 'migrations', 'run.js');
+    execSync(`node "${migrationScript}"`, {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: process.env
+    });
+    console.log('✅ Database migrations completed successfully');
+  } catch (error) {
+    console.error('❌ Database migration failed:', error.message);
+    // In production, we want to fail fast if migrations fail
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Exiting due to migration failure in production');
+      process.exit(1);
+    }
+    console.warn('⚠️ Continuing despite migration failure (non-production environment)');
+  }
+}
+
+// Execute migrations before server setup
+runMigrations();
 
 // Import routes
 const serviceRequestRoutes = require('./routes/serviceRequests');
